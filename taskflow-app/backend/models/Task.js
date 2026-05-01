@@ -7,7 +7,8 @@ const Task = sequelize.define('Task', {
   description: { type: DataTypes.TEXT },
   status: { type: DataTypes.ENUM('todo', 'in-progress', 'done'), defaultValue: 'todo' },
   priority: { type: DataTypes.ENUM('low', 'medium', 'high'), defaultValue: 'medium' },
-  dueDate: { type: DataTypes.DATE }
+  dueDate: { type: DataTypes.DATE },
+  assigneeId: { type: DataTypes.UUID, allowNull: true }
 });
 
 module.exports = Task;
