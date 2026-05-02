@@ -37,10 +37,12 @@ export default function Sidebar({ active }) {
     { to: '/dashboard', id: 'dashboard', icon: '◈', label: 'Dashboard' },
     { to: '/projects',  id: 'projects',  icon: '⬡', label: 'Projects'  },
     { to: '/tasks',     id: 'tasks',     icon: '◉', label: 'Tasks'     },
+    { to: '/members',   id: 'members',   icon: '◎', label: 'Members'   },
     { to: '/profile',   id: 'profile',   icon: '○', label: 'Profile'   },
   ];
   const memberLinks = [
     { to: '/dashboard', id: 'dashboard', icon: '◈', label: 'Dashboard' },
+    { to: '/projects',  id: 'projects',  icon: '⬡', label: 'Projects'  },
     { to: '/tasks',     id: 'tasks',     icon: '◉', label: 'My Tasks'  },
     { to: '/profile',   id: 'profile',   icon: '○', label: 'Profile'   },
   ];
@@ -58,29 +60,23 @@ export default function Sidebar({ active }) {
       padding: '20px 14px', fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
       transition: 'background 0.3s, border-color 0.3s'
     }}>
-      {/* Logo + tagline */}
       <div style={{ padding: '8px 12px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
           <div style={{
             width: '34px', height: '34px',
             background: 'linear-gradient(135deg, #6366f1, #a855f7)',
             borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '14px', color: 'white', fontFamily: "'Syne', sans-serif", fontWeight: '800',
-            flexShrink: 0
+            fontSize: '14px', color: 'white', fontFamily: "'Syne', sans-serif", fontWeight: '800', flexShrink: 0
           }}>S</div>
           <span style={{ fontSize: '17px', fontWeight: '800', color: t.text, fontFamily: "'Syne', sans-serif", letterSpacing: '-0.5px' }}>
             SYNQ <span style={{ color: '#8b5cf6' }}>AI</span>
           </span>
         </div>
-        <p style={{
-          margin: 0, fontSize: '10px', fontWeight: '600', lineHeight: 1.5,
-          color: '#8b5cf6', letterSpacing: '0.2px', paddingLeft: '44px'
-        }}>
+        <p style={{ margin: 0, fontSize: '10px', fontWeight: '600', lineHeight: 1.5, color: '#8b5cf6', letterSpacing: '0.2px', paddingLeft: '44px' }}>
           Think Less. Deliver More.<br />Stay in Sync.
         </p>
       </div>
 
-      {/* User Card */}
       <Link to="/profile" style={{ textDecoration: 'none' }}>
         <div style={{
           padding: '14px', background: t.cardBg, borderRadius: '12px',
@@ -104,9 +100,7 @@ export default function Sidebar({ active }) {
             display: 'inline-block', padding: '3px 11px', borderRadius: '20px',
             fontSize: '11px', fontWeight: '600', letterSpacing: '0.3px',
             background: rc.bg, color: rc.color, border: `1px solid ${rc.border}`
-          }}>
-            {rc.label}
-          </span>
+          }}>{rc.label}</span>
         </div>
       </Link>
 
@@ -114,7 +108,6 @@ export default function Sidebar({ active }) {
         Navigation
       </div>
 
-      {/* Nav Links */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
         {links.map(link => {
           const isActive = active === link.id;
@@ -134,23 +127,18 @@ export default function Sidebar({ active }) {
         })}
       </nav>
 
-      {/* Bottom buttons */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '20px' }}>
         <button onClick={toggle} className="synq-theme-btn" style={{
-          padding: '10px 14px', background: t.cardBg,
-          border: `1px solid ${t.border}`, borderRadius: '10px',
-          color: t.textSec, cursor: 'pointer', fontSize: '13px',
-          textAlign: 'left', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px',
-          transition: 'all 0.18s', fontFamily: "'DM Sans', sans-serif"
+          padding: '10px 14px', background: t.cardBg, border: `1px solid ${t.border}`, borderRadius: '10px',
+          color: t.textSec, cursor: 'pointer', fontSize: '13px', textAlign: 'left', fontWeight: '500',
+          display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.18s', fontFamily: "'DM Sans', sans-serif"
         }}>
           {dark ? '☀' : '☽'} {dark ? 'Light Mode' : 'Dark Mode'}
         </button>
         <button onClick={logout} className="synq-logout" style={{
-          padding: '10px 14px', background: 'rgba(239,68,68,0.08)',
-          border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px',
+          padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px',
           color: '#f87171', cursor: 'pointer', fontSize: '13px', fontWeight: '500',
-          textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px',
-          transition: 'all 0.18s', fontFamily: "'DM Sans', sans-serif"
+          textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.18s', fontFamily: "'DM Sans', sans-serif"
         }}>
           ⇤ Sign Out
         </button>

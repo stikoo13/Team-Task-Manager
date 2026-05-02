@@ -69,8 +69,6 @@ export default function Login() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'DM Sans', sans-serif" }}>
-
-      {/* LEFT — gradient hero */}
       <div style={{
         flex: 1, position: 'relative', overflow: 'hidden',
         background: 'linear-gradient(-45deg, #1e1b4b, #4c1d95, #6366f1, #7c3aed, #0f172a)',
@@ -95,7 +93,6 @@ export default function Login() {
           backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
           backgroundSize: '40px 40px'
         }} />
-
         <div style={{ position: 'relative', color: 'white' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '10px',
@@ -106,17 +103,17 @@ export default function Login() {
             <span style={{ width:8, height:8, borderRadius:'50%', background:'#4ade80', display:'inline-block', boxShadow:'0 0 8px #4ade80' }} />
             All systems operational
           </div>
-
-          <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '56px', fontWeight: '800', margin: '0 0 20px', lineHeight: 1.05, letterSpacing: '-2px' }}>
+          <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '56px', fontWeight: '800', margin: '0 0 8px', lineHeight: 1.05, letterSpacing: '-2px' }}>
             SYNQ <span style={{ color: '#a5b4fc' }}>AI</span>
           </h1>
-
-          <p style={{ fontSize: '17px', lineHeight: 1.75, maxWidth: '380px', margin: '0 0 48px', opacity: 0.92, fontWeight: '400' }}>
-            Your team's intelligence layer.<br />
-            <span style={{ color: '#c4b5fd', fontWeight: '600' }}>Assign. Track. Deliver.</span> — all in one place,<br />
-            powered by the clarity only AI can bring.
+          <p style={{ fontSize: '15px', color: '#c4b5fd', fontWeight: '700', margin: '0 0 20px', letterSpacing: '0.3px' }}>
+            Smarter Collaboration Starts Here
           </p>
-
+          <p style={{ fontSize: '16px', lineHeight: 1.8, maxWidth: '380px', margin: '0 0 48px', opacity: 0.88, fontWeight: '400' }}>
+            Work smarter with AI-powered collaboration.<br />
+            Manage tasks, align teams, and turn ideas into<br />
+            <span style={{ color: '#c4b5fd', fontWeight: '600' }}>execution — faster than ever.</span>
+          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {[
               { icon: '◈', text: 'Project & task tracking' },
@@ -132,7 +129,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* RIGHT — form panel */}
       <div style={{
         width: '480px', background: t.bg, display: 'flex', flexDirection: 'column',
         justifyContent: 'center', padding: '60px 52px', position: 'relative',
@@ -147,7 +143,6 @@ export default function Login() {
         }}>
           {dark ? '☀' : '☽'}
         </button>
-
         <div className="synq-form-card">
           <p style={{ fontSize: '12px', fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '10px' }}>Welcome back</p>
           <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '28px', fontWeight: '700', color: t.text, margin: '0 0 6px', letterSpacing: '-0.5px' }}>
@@ -156,7 +151,6 @@ export default function Login() {
           <p style={{ color: t.textSec, fontSize: '14px', margin: '0 0 28px' }}>
             Don't have one? <Link to="/signup" style={{ color: '#6366f1', fontWeight: '600', textDecoration: 'none' }}>Create account →</Link>
           </p>
-
           {error && (
             <div style={{
               background: dark ? 'rgba(239,68,68,0.1)' : '#fef2f2',
@@ -167,12 +161,8 @@ export default function Login() {
               <span>⚠</span> {error}
             </div>
           )}
-
-          {/* Role Selector */}
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>
-              Login As
-            </label>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Login As</label>
             <div style={{ display: 'flex', gap: '8px' }}>
               {roles.map(r => (
                 <button key={r.value} className="synq-role-btn"
@@ -191,12 +181,8 @@ export default function Login() {
               ))}
             </div>
           </div>
-
-          {/* Email */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-              Email Address
-            </label>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Email Address</label>
             <input className="synq-input" type="email" placeholder="you@company.com"
               value={form.email} onFocus={() => setFocused('email')} onBlur={() => setFocused('')}
               onChange={e => setForm({ ...form, email: e.target.value })}
@@ -209,12 +195,8 @@ export default function Login() {
                 fontFamily: "'DM Sans', sans-serif"
               }} />
           </div>
-
-          {/* Password */}
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-              Password
-            </label>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Password</label>
             <div style={{ position: 'relative' }}>
               <input className="synq-input" type={showPassword ? 'text' : 'password'} placeholder="••••••••••"
                 value={form.password} onFocus={() => setFocused('password')} onBlur={() => setFocused('')}
@@ -238,7 +220,6 @@ export default function Login() {
               </button>
             </div>
           </div>
-
           <button className="synq-btn" onClick={handleSubmit} disabled={loading}
             style={{
               width: '100%', padding: '14px',

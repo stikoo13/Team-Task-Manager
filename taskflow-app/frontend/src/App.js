@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
 import Tasks from './pages/Tasks';
 import Profile from './pages/Profile';
+import Members from './pages/Members';
 import ClientDashboard from './pages/ClientDashboard';
 
 const PrivateRoute = ({ children }) => {
@@ -24,6 +25,7 @@ function App() {
           <Route path="/projects"  element={<PrivateRoute><Projects /></PrivateRoute>} />
           <Route path="/tasks"     element={<PrivateRoute><Tasks /></PrivateRoute>} />
           <Route path="/profile"   element={<PrivateRoute><Profile /></PrivateRoute>} />
+          <Route path="/members"   element={<PrivateRoute><Members /></PrivateRoute>} />
           <Route path="/client"    element={<PrivateRoute><ClientDashboard /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
