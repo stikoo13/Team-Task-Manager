@@ -58,25 +58,33 @@ export default function Sidebar({ active }) {
       padding: '20px 14px', fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
       transition: 'background 0.3s, border-color 0.3s'
     }}>
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', marginBottom: '28px' }}>
-        <div style={{
-          width: '34px', height: '34px',
-          background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-          borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '14px', color: 'white', fontFamily: "'Syne', sans-serif", fontWeight: '800'
-        }}>S</div>
-        <span style={{ fontSize: '17px', fontWeight: '800', color: t.text, fontFamily: "'Syne', sans-serif", letterSpacing: '-0.5px' }}>
-          SYNQ <span style={{ color: '#8b5cf6' }}>AI</span>
-        </span>
+      {/* Logo + tagline */}
+      <div style={{ padding: '8px 12px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+          <div style={{
+            width: '34px', height: '34px',
+            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+            borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '14px', color: 'white', fontFamily: "'Syne', sans-serif", fontWeight: '800',
+            flexShrink: 0
+          }}>S</div>
+          <span style={{ fontSize: '17px', fontWeight: '800', color: t.text, fontFamily: "'Syne', sans-serif", letterSpacing: '-0.5px' }}>
+            SYNQ <span style={{ color: '#8b5cf6' }}>AI</span>
+          </span>
+        </div>
+        <p style={{
+          margin: 0, fontSize: '10px', fontWeight: '600', lineHeight: 1.5,
+          color: '#8b5cf6', letterSpacing: '0.2px', paddingLeft: '44px'
+        }}>
+          Think Less. Deliver More.<br />Stay in Sync.
+        </p>
       </div>
 
       {/* User Card */}
       <Link to="/profile" style={{ textDecoration: 'none' }}>
         <div style={{
           padding: '14px', background: t.cardBg, borderRadius: '12px',
-          border: `1px solid ${t.border}`, marginBottom: '20px',
-          cursor: 'pointer', transition: 'border-color 0.2s'
+          border: `1px solid ${t.border}`, marginBottom: '20px', cursor: 'pointer'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
             <div style={{

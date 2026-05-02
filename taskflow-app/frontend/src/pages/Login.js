@@ -31,8 +31,8 @@ export default function Login() {
         }
         @keyframes orbPulse {
           0%, 100% { transform: scale(1) translate(0,0); }
-          33%       { transform: scale(1.08) translate(10px,-8px); }
-          66%       { transform: scale(0.95) translate(-6px,12px); }
+          33%      { transform: scale(1.08) translate(10px,-8px); }
+          66%      { transform: scale(0.95) translate(-6px,12px); }
         }
         .synq-input:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important; }
         .synq-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.45) !important; }
@@ -107,14 +107,14 @@ export default function Login() {
             All systems operational
           </div>
 
-          <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '56px', fontWeight: '800', margin: '0 0 6px', lineHeight: 1.05, letterSpacing: '-2px' }}>
+          <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '56px', fontWeight: '800', margin: '0 0 20px', lineHeight: 1.05, letterSpacing: '-2px' }}>
             SYNQ <span style={{ color: '#a5b4fc' }}>AI</span>
           </h1>
-          <p style={{ fontSize: '15px', color: '#c4b5fd', fontWeight: '700', margin: '0 0 14px', letterSpacing: '0.3px' }}>
-            Smarter Collaboration Starts Here
-          </p>
-          <p style={{ fontSize: '15px', opacity: 0.65, maxWidth: '360px', lineHeight: 1.7, margin: '0 0 48px', fontStyle: 'italic' }}>
-            Think Less. Deliver More. Stay in Sync.
+
+          <p style={{ fontSize: '17px', lineHeight: 1.75, maxWidth: '380px', margin: '0 0 48px', opacity: 0.92, fontWeight: '400' }}>
+            Your team's intelligence layer.<br />
+            <span style={{ color: '#c4b5fd', fontWeight: '600' }}>Assign. Track. Deliver.</span> — all in one place,<br />
+            powered by the clarity only AI can bring.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

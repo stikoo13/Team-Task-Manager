@@ -17,6 +17,73 @@ const STAT_CARDS = [
   { key: 'overdue',    label: 'Overdue',      icon: '⚠', gradient: 'linear-gradient(135deg, #ef4444, #f43f5e)' },
 ];
 
+function AnalogClock({ time, dark }) {
+  const size = 110;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 6;
+
+  const seconds = time.getSeconds();
+  const minutes = time.getMinutes();
+  const hours = time.getHours() % 12;
+
+  const secDeg   = seconds * 6;
+  const minDeg   = minutes * 6 + seconds * 0.1;
+  const hourDeg  = hours * 30 + minutes * 0.5;
+
+  const toXY = (deg, length) => {
+    const rad = (deg - 90) * (Math.PI / 180);
+    return {
+      x: cx + Math.cos(rad) * length,
+      y: cy + Math.sin(rad) * length,
+    };
+  };
+
+  const secPt  = toXY(secDeg,  r * 0.82);
+  const minPt  = toXY(minDeg,  r * 0.72);
+  const hourPt = toXY(hourDeg, r * 0.52);
+
+  const faceColor    = dark ? '#13132a' : '#f1f5f9';
+  const borderColor  = dark ? '#6366f1' : '#6366f1';
+  const tickColor    = dark ? 'rgba(165,180,252,0.4)' : 'rgba(99,102,241,0.25)';
+  const hourColor    = dark ? '#e2e8f0' : '#1e293b';
+  const minuteColor  = dark ? '#a5b4fc' : '#6366f1';
+  const secondColor  = '#f43f5e';
+  const centerColor  = dark ? '#6366f1' : '#6366f1';
+  const glowColor    = dark ? 'rgba(99,102,241,0.35)' : 'rgba(99,102,241,0.15)';
+
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const deg = i * 30;
+    const inner = toXY(deg, r * 0.78);
+    const outer = toXY(deg, r * 0.92);
+    return { inner, outer, major: true };
+  });
+
+  return (
+    <svg width={size} height={size} style={{ filter: `drop-shadow(0 0 10px ${glowColor})` }}>
+      {/* Face */}
+      <circle cx={cx} cy={cy} r={r} fill={faceColor} stroke={borderColor} strokeWidth="2" />
+      {/* Ticks */}
+      {ticks.map((tk, i) => (
+        <line key={i} x1={tk.inner.x} y1={tk.inner.y} x2={tk.outer.x} y2={tk.outer.y}
+          stroke={tickColor} strokeWidth={i % 3 === 0 ? 2 : 1} strokeLinecap="round" />
+      ))}
+      {/* Hour hand */}
+      <line x1={cx} y1={cy} x2={hourPt.x} y2={hourPt.y}
+        stroke={hourColor} strokeWidth="3" strokeLinecap="round" />
+      {/* Minute hand */}
+      <line x1={cx} y1={cy} x2={minPt.x} y2={minPt.y}
+        stroke={minuteColor} strokeWidth="2" strokeLinecap="round" />
+      {/* Second hand */}
+      <line x1={cx} y1={cy} x2={secPt.x} y2={secPt.y}
+        stroke={secondColor} strokeWidth="1.2" strokeLinecap="round" />
+      {/* Center dot */}
+      <circle cx={cx} cy={cy} r="4" fill={centerColor} />
+      <circle cx={cx} cy={cy} r="2" fill="white" />
+    </svg>
+  );
+}
+
 export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [time, setTime] = useState(new Date());
@@ -33,28 +100,35 @@ export default function Dashboard() {
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
         @keyframes cardIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
         .synq-stat-card { animation: cardIn 0.4s ease forwards; }
-        .synq-stat-card:hover { transform: translateY(-3px) !important; transition: transform 0.2s ease !important; }
+        .synq-stat-card:hover { transform: translateY(-4px) !important; box-shadow: 0 12px 32px rgba(99,102,241,0.18) !important; transition: all 0.2s ease !important; }
         .synq-task-row:hover { background: rgba(99,102,241,0.06) !important; }
       `;
       document.head.appendChild(s);
     }
-    axios.get('/tasks').then(res => setTasks(res.data)).catch(() => {});
+
+    const fetchTasks = () => {
+      axios.get('/tasks').then(res => setTasks(res.data)).catch(() => {});
+    };
+    fetchTasks();
+
+    const taskInterval = setInterval(fetchTasks, 30000);
     const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    return () => { clearInterval(timer); clearInterval(taskInterval); };
   }, []);
 
+  const now = new Date();
   const stats = {
     total:      tasks.length,
     inProgress: tasks.filter(t => t.status === 'in-progress').length,
     done:       tasks.filter(t => t.status === 'done').length,
-    overdue:    tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'done').length,
+    overdue:    tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== 'done').length,
   };
 
-  const hour = new Date().getHours();
+  const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const dateStr = time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const dateStr = time.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, fontFamily: "'DM Sans', sans-serif", transition: 'background 0.3s' }}>
@@ -63,19 +137,24 @@ export default function Dashboard() {
       <main style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
 
         {/* Top bar with clock */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '32px' }}>
           <div style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
+            display: 'flex', alignItems: 'center', gap: '18px',
             background: t.cardBg, border: `1px solid ${t.border}`,
-            borderRadius: '12px', padding: '10px 18px',
-            boxShadow: dark ? '0 4px 20px rgba(0,0,0,0.2)' : '0 2px 10px rgba(0,0,0,0.05)'
+            borderRadius: '16px', padding: '16px 24px',
+            boxShadow: dark ? '0 4px 24px rgba(0,0,0,0.3)' : '0 2px 16px rgba(99,102,241,0.1)'
           }}>
-            <span style={{ fontSize: '18px' }}>🕐</span>
+            <AnalogClock time={time} dark={dark} />
             <div>
-              <div style={{ fontFamily: "'Syne', sans-serif", fontSize: '16px', fontWeight: '700', color: t.text, lineHeight: 1 }}>
+              <div style={{
+                fontFamily: "'Syne', sans-serif", fontSize: '26px', fontWeight: '800',
+                color: t.text, lineHeight: 1, letterSpacing: '-1px'
+              }}>
                 {timeStr}
               </div>
-              <div style={{ fontSize: '11px', color: t.textSec, marginTop: '2px' }}>{dateStr}</div>
+              <div style={{ fontSize: '12px', color: t.textSec, marginTop: '4px', fontWeight: '500' }}>
+                {dateStr}
+              </div>
             </div>
           </div>
         </div>
@@ -102,7 +181,7 @@ export default function Dashboard() {
             <div key={card.key} className="synq-stat-card" style={{
               background: t.cardBg, borderRadius: '16px', padding: '22px',
               border: `1px solid ${t.border}`, cursor: 'default',
-              animationDelay: `${i * 0.07}s`, transition: 'box-shadow 0.2s',
+              animationDelay: `${i * 0.07}s`,
               boxShadow: dark ? '0 4px 24px rgba(0,0,0,0.3)' : '0 2px 12px rgba(0,0,0,0.05)'
             }}>
               <div style={{
@@ -111,7 +190,7 @@ export default function Dashboard() {
                 fontSize: '18px', color: 'white', marginBottom: '16px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
               }}>{card.icon}</div>
-              <div style={{ fontSize: '28px', fontWeight: '700', fontFamily: "'Syne', sans-serif", color: t.text, lineHeight: 1, marginBottom: '4px' }}>
+              <div style={{ fontSize: '32px', fontWeight: '800', fontFamily: "'Syne', sans-serif", color: t.text, lineHeight: 1, marginBottom: '6px' }}>
                 {stats[card.key]}
               </div>
               <div style={{ fontSize: '12px', color: t.textSec, fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
