@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const instance = axios.create({ 
-  baseURL: 'https://bug-free-guide-5grvrpxjqp952vqw6-5000.app.github.dev/api'
+const instance = axios.create({
+  baseURL: 'https://team-task-manager-production-60e4.up.railway.app/api'
 });
 
 instance.interceptors.request.use(config => {
