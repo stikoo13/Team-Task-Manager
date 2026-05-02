@@ -34,7 +34,7 @@ export default function Projects() {
     }
     fetchProjects();
     if (isAdmin) fetchAllUsers();
-  }, []);
+  }, [isAdmin]); // ✅ FIXED: added isAdmin to dependency array
 
   const fetchProjects = () => {
     axios.get('/projects').then(res => setProjects(res.data)).catch(() => {});
