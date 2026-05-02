@@ -14,7 +14,17 @@ Task.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
 Task.belongsTo(Project, { foreignKey: 'ProjectId', as: 'project' });
 
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: [
+    'https://delightful-art-production-0d5d.up.railway.app',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 connectDB();
@@ -22,33 +32,6 @@ connectDB();
 sequelize.sync({ alter: true })
   .then(() => console.log('Tables synced!'))
   .catch(err => console.error('Sync error:', err.message));
-
-// TEST ROUTE - tells you exactly what's wrong
-app.post('/api/test-login', async (req, res) => {
-  const bcrypt = require('bcryptjs');
-  const jwt = require('jsonwebtoken');
-  const { email, password } = req.body;
-  try {
-    console.log('1. Looking for user:', email);
-    const user = await User.findOne({ where: { email } });
-    console.log('2. User found:', user ? 'YES' : 'NO');
-    if (!user) return res.json({ step: 'findOne', error: 'No user with this email' });
-
-    console.log('3. Comparing password...');
-    const valid = await bcrypt.compare(password, user.password);
-    console.log('4. Password valid:', valid);
-    if (!valid) return res.json({ step: 'bcrypt', error: 'Wrong password' });
-
-    console.log('5. JWT_SECRET:', process.env.JWT_SECRET);
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    console.log('6. Token created:', !!token);
-
-    res.json({ success: true, token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-  } catch (err) {
-    console.error('FULL ERROR:', err);
-    res.json({ step: 'catch', error: err.message, stack: err.stack });
-  }
-});
 
 app.get('/', (req, res) => res.json({ message: 'SYNQ AI API is running!' }));
 app.use('/api/auth', require('./routes/authRoutes'));
