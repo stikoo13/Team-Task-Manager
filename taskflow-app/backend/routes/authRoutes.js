@@ -12,10 +12,8 @@ router.put('/password', protect, updatePassword);
 // GET all users — admin only
 router.get('/users', protect, async (req, res) => {
   try {
-    const users = await User.findAll({
-      attributes: ['id', 'name', 'email', 'role'],
-      order: [['name', 'ASC']]
-    });
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admins only' });
+    const users = await User.findAll({ attributes: ['id', 'name', 'email', 'role'] });
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch users' });
