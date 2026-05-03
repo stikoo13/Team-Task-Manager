@@ -40,11 +40,22 @@ router.post('/', protect, async (req, res) => {
     const { name, description, status, startDate, endDate, memberIds = [], clientIds = [] } = req.body;
     if (!name) return res.status(400).json({ message: 'Name is required' });
 
+    const { tasks = [] } = req.body;
+
     const project = await Project.create({
-      name, description, status,
-      startDate: startDate || null,
-      endDate:   endDate   || null,
-    });
+    name, description, status,
+    startDate: startDate || null,
+    endDate:   endDate   || null,
+});
+
+if (tasks.length > 0) {
+  await Task.bulkCreate(tasks.map(title => ({
+    title,
+    status:   'todo',
+    priority: 'medium',
+    ProjectId: project.id,
+  })));
+}
 
     const memberSet = [...new Set([req.user.id, ...memberIds])];
     const members   = await User.findAll({ where: { id: memberSet } });
