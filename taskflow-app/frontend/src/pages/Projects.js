@@ -66,6 +66,8 @@ const UserPicker = ({ list, selected, onToggle, empty, accentColor = '#6366f1', 
 const FormBody = ({ f, setF, ms, setMs, cs, setCs, focusPrefix='', nonClients, clients, dark, t }) => {
   const [focused, setFocused] = useState('');
 
+const lbl = { display:'block', fontSize:'11px', fontWeight:'600', color:t.textSec, marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.7px' };
+
   const flt = (list, q) => list.filter(u =>
     u.name.toLowerCase().includes(q.toLowerCase()) ||
     u.email.toLowerCase().includes(q.toLowerCase())
