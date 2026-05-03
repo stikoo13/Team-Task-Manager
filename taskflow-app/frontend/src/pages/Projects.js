@@ -173,12 +173,15 @@ export default function Projects() {
   const fetchProjects = () => axios.get('/projects').then(r => setProjects(r.data)).catch(() => {});
   const fetchAllUsers = () => axios.get('/auth/users').then(r => setAllUsers(r.data)).catch(() => {});
 
-  const generateTasks = async () => {
+    const generateTasks = async () => {
     if (!form.name || !form.description) { setAiError('Enter both project name and description first.'); return; }
     setAiError(''); setAiLoading(true);
     try {
       const { data } = await axios.post('/ai/generate-tasks', { name: form.name, description: form.description });
-      setAiTasks(data.tasks.map((text, i) => ({ id: Date.now() + i, text })));
+      setAiTasks(data.tasks.map((item, i) => ({
+        id: Date.now() + i,
+        text: typeof item === 'string' ? item : (item.title || item.task || item.name || JSON.stringify(item))
+      })));
     } catch { setAiError('AI generation failed. Try again.'); }
     finally { setAiLoading(false); }
   };
