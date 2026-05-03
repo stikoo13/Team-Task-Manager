@@ -251,7 +251,6 @@ export default function Projects() {
     try { await axios.delete(`/projects/${id}`); fetchProjects(); } catch {}
   };
 
-  const lbl = { display:'block', fontSize:'11px', fontWeight:'600', color:t.textSec, marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.7px' };
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:t.bg, fontFamily:"'DM Sans',sans-serif", transition:'background 0.3s' }}>
