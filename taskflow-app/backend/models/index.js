@@ -1,15 +1,38 @@
-const User = require('./User');
+const { sequelize } = require('../config/db');
 const Project = require('./Project');
-const Task = require('./Task');
+const User    = require('./User');
+const Task    = require('./Task');
 
-// Relationships
-User.hasMany(Project, { foreignKey: 'ownerId' });
-Project.belongsTo(User, { foreignKey: 'ownerId' });
+// Project <-> Members (non-clients)
+Project.belongsToMany(User, {
+  through: 'ProjectMembers',
+  as: 'members',
+  foreignKey: 'projectId',
+  otherKey: 'userId',
+});
+User.belongsToMany(Project, {
+  through: 'ProjectMembers',
+  as: 'memberProjects',
+  foreignKey: 'userId',
+  otherKey: 'projectId',
+});
 
-Project.hasMany(Task, { foreignKey: 'projectId' });
+// Project <-> Clients
+Project.belongsToMany(User, {
+  through: 'ProjectClients',
+  as: 'clients',
+  foreignKey: 'projectId',
+  otherKey: 'userId',
+});
+User.belongsToMany(Project, {
+  through: 'ProjectClients',
+  as: 'clientProjects',
+  foreignKey: 'userId',
+  otherKey: 'projectId',
+});
+
+// Project -> Tasks
+Project.hasMany(Task, { foreignKey: 'projectId', as: 'Tasks' });
 Task.belongsTo(Project, { foreignKey: 'projectId' });
 
-User.hasMany(Task, { foreignKey: 'assignedTo' });
-Task.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignee' });
-
-module.exports = { User, Project, Task };
+module.exports = { sequelize, Project, User, Task };
