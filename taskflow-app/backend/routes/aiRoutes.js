@@ -11,7 +11,7 @@ router.post('/generate-tasks', async (req, res) => {
 
   try {
     const completion = await groq.chat.completions.create({
-      model: 'llama3-70b-8192',
+      model: 'llama-3.3-70b-versatile',
       messages: [{
         role: 'user',
         content: `You are a professional project manager. Generate 6-9 realistic, actionable project tasks for the following project. Return ONLY a numbered list. No headers, no explanation, no markdown.
