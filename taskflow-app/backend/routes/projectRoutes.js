@@ -50,10 +50,12 @@ router.post('/', protect, async (req, res) => {
 
 if (tasks.length > 0) {
   await Task.bulkCreate(tasks.map(title => ({
-    title,
+    title: typeof t === 'string' ? t : t.text,
     status:   'todo',
     priority: 'medium',
     ProjectId: project.id,
+    assigneeId: t.assigneeId || null,
+
   })));
 }
 
