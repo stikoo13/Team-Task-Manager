@@ -84,7 +84,6 @@ const FormBody = ({ f, setF, ms, setMs, cs, setCs, focusPrefix='', nonClients, c
     transition:'all 0.2s', fontFamily:"'DM Sans',sans-serif", ...extra
   });
 
-  const lbl = { display:'block', fontSize:'11px', fontWeight:'600', color:t.textSec, marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.7px' };
 
   return (
     <>
