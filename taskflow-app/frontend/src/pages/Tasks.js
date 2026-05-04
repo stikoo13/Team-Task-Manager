@@ -32,7 +32,7 @@ export default function Tasks() {
   const [newTask,        setNewTask]        = useState(EMPTY_TASK);
   const [creating,       setCreating]       = useState(false);
   const [loading,        setLoading]        = useState(true);
-  const [editingTask,    setEditingTask]    = useState(null);
+  const [_editingTask, _setEditingTask] = useState(null);
   const [showForm,       setShowForm]       = useState(false);
   const [error,          setError]          = useState('');
 
