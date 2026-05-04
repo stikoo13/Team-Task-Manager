@@ -3,24 +3,10 @@ const express  = require('express');
 const cors     = require('cors');
 const { connectDB, sequelize } = require('./config/db');
 
-const User    = require('./models/User');
-const Project = require('./models/Project');
-const Task    = require('./models/Task');
-
-// ── Associations ─────────────────────────────────────────────
-Project.belongsToMany(User, { through: 'ProjectMembers', as: 'members' });
-User.belongsToMany(Project, { through: 'ProjectMembers', as: 'projects' });
-
-Project.belongsToMany(User, { through: 'ProjectClients', as: 'clients' });
-User.belongsToMany(Project, { through: 'ProjectClients', as: 'clientProjects' });
-
-Task.belongsTo(User,    { foreignKey: 'assigneeId', as: 'assignee' });
-Task.belongsTo(Project, { foreignKey: 'ProjectId',  as: 'project'  });
-Project.hasMany(Task,   { foreignKey: 'ProjectId',  as: 'Tasks'    });
-// ─────────────────────────────────────────────────────────────
+// Load models + associations from index.js (single source of truth)
+require('./models/index');
 
 const app = express();
-
 app.use(cors({
   origin: [
     'https://delightful-art-production-0d5d.up.railway.app',
@@ -30,11 +16,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
 app.use(express.json());
-
 connectDB();
-
 sequelize.sync({ alter: true })
   .then(() => console.log('Tables synced!'))
   .catch(err => console.error('Sync error:', err.message));
