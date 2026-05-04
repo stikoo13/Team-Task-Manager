@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from '../api/axios';
 import Sidebar from '../components/Sidebar';
 import { useTheme } from '../context/ThemeContext';
@@ -8,29 +8,35 @@ const STATUS_CONFIG = {
   'in-progress': { label: 'In Progress', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
   'done':        { label: 'Done',        color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
 };
-
 const PRIORITY_CONFIG = {
-  low:    { color: '#10b981', bg: 'rgba(16,185,129,0.12)'  },
-  medium: { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
-  high:   { color: '#ef4444', bg: 'rgba(239,68,68,0.12)'   },
+  low:    { color: '#94a3b8', label: 'Low'    },
+  medium: { color: '#f59e0b', label: 'Medium' },
+  high:   { color: '#ef4444', label: 'High'   },
 };
-
-const L = { bg:'#f8fafc', cardBg:'#ffffff', inputBg:'#ffffff', text:'#0f172a', textSec:'#64748b', border:'#e2e8f0' };
+const EMPTY_TASK = { title: '', description: '', priority: 'medium', dueDate: '', status: 'todo' };
+const L = { bg:'#f8fafc', cardBg:'#ffffff', inputBg:'#f1f5f9', text:'#0f172a', textSec:'#64748b', border:'#e2e8f0' };
 const D = { bg:'#070714', cardBg:'#0e0e1c', inputBg:'#13132a', text:'#e2e8f0', textSec:'#475569', border:'rgba(255,255,255,0.07)' };
 
 export default function Tasks() {
-  const [tasks, setTasks]       = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [form, setForm]         = useState({ title: '', description: '', status: 'todo', priority: 'medium', dueDate: '', ProjectId: '' });
-  const [error, setError]       = useState('');
-  const [focused, setFocused]   = useState('');
-  const [activeProject, setActiveProject] = useState('all');
   const { dark } = useTheme();
-  const t = dark ? D : L;
-  const user    = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin  = user.role === 'admin';
-  const isMember = user.role === 'member';
+  const th = dark ? D : L;
+  const user      = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin   = user.role === 'admin';
 
+  // ── State ──────────────────────────────────────────────────
+  const [activeTab,      setActiveTab]      = useState('personal'); // 'personal' | 'project'
+  const [personalTasks,  setPersonalTasks]  = useState([]);
+  const [projectTasks,   setProjectTasks]   = useState([]);
+  const [projects,       setProjects]       = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [newTask,        setNewTask]        = useState(EMPTY_TASK);
+  const [creating,       setCreating]       = useState(false);
+  const [loading,        setLoading]        = useState(true);
+  const [editingTask,    setEditingTask]    = useState(null);
+  const [showForm,       setShowForm]       = useState(false);
+  const [error,          setError]          = useState('');
+
+  // ── Font injection ─────────────────────────────────────────
   useEffect(() => {
     const id = 'synq-tasks-style';
     if (!document.getElementById(id)) {
@@ -38,257 +44,430 @@ export default function Tasks() {
       s.id = id;
       s.textContent = `
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
-        @keyframes cardIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-        .synq-task-card { animation: cardIn 0.35s ease forwards; }
-        .synq-task-input:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important; }
-        .synq-del-btn:hover { background: rgba(239,68,68,0.2) !important; }
-        .synq-create-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(99,102,241,0.4) !important; }
-        .synq-proj-tab:hover { background: rgba(99,102,241,0.08) !important; }
+        @keyframes cardIn { from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)} }
+        @keyframes spin   { to{transform:rotate(360deg)} }
+        .tk-row:hover { background: rgba(99,102,241,0.05) !important; }
+        .tk-tab { transition: all 0.18s !important; }
       `;
       document.head.appendChild(s);
     }
-    fetchAll();
   }, []);
 
-  const fetchAll = () => {
-    axios.get('/tasks').then(res => setTasks(res.data)).catch(() => {});
-    axios.get('/projects').then(res => setProjects(res.data)).catch(() => {});
-  };
-
-  const createTask = async () => {
-    if (!form.title) return setError('Task title is required');
+  // ── Fetch personal tasks (no ProjectId, assigned to self) ──
+  const fetchPersonalTasks = useCallback(async () => {
     try {
-      await axios.post('/tasks', form);
-      setForm({ title: '', description: '', status: 'todo', priority: 'medium', dueDate: '', ProjectId: '' });
-      setError('');
-      fetchAll();
-    } catch (err) { setError(err.response?.data?.message || 'Failed to create task'); }
+      const { data } = await axios.get('/tasks');
+      // Personal tasks = tasks with no ProjectId
+      setPersonalTasks(data.filter(t => !t.ProjectId));
+    } catch { setPersonalTasks([]); }
+  }, []);
+
+  // ── Fetch projects assigned to this member ─────────────────
+  const fetchProjects = useCallback(async () => {
+    try {
+      const { data } = await axios.get('/projects');
+      setProjects(data);
+    } catch { setProjects([]); }
+  }, []);
+
+  // ── Fetch tasks for a specific project ────────────────────
+  const fetchProjectTasks = useCallback(async (projectId) => {
+    try {
+      const { data } = await axios.get(`/tasks?projectId=${projectId}`);
+      setProjectTasks(data);
+    } catch { setProjectTasks([]); }
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([fetchPersonalTasks(), fetchProjects()])
+      .finally(() => setLoading(false));
+  }, [fetchPersonalTasks, fetchProjects]);
+
+  useEffect(() => {
+    if (selectedProject) fetchProjectTasks(selectedProject.id);
+  }, [selectedProject, fetchProjectTasks]);
+
+  // ── Create personal task ───────────────────────────────────
+  const createPersonalTask = async () => {
+    if (!newTask.title.trim()) return setError('Task title is required');
+    setCreating(true); setError('');
+    try {
+      // Personal tasks: no ProjectId, assigneeId = self (set by backend)
+      await axios.post('/tasks', {
+        title:       newTask.title.trim(),
+        description: newTask.description.trim(),
+        priority:    newTask.priority,
+        dueDate:     newTask.dueDate || null,
+        status:      'todo',
+        // No ProjectId → personal task
+      });
+      setNewTask(EMPTY_TASK);
+      setShowForm(false);
+      fetchPersonalTasks();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create task');
+    } finally { setCreating(false); }
   };
 
-  const updateStatus = async (id, status) => {
-    try { await axios.put(`/tasks/${id}`, { status }); fetchAll(); } catch {}
+  // ── Update task status ─────────────────────────────────────
+  const updateStatus = async (task, newStatus) => {
+    try {
+      await axios.put(`/tasks/${task.id}`, { ...task, status: newStatus });
+      fetchPersonalTasks();
+      if (selectedProject) fetchProjectTasks(selectedProject.id);
+    } catch {}
   };
 
+  // ── Delete task ────────────────────────────────────────────
   const deleteTask = async (id) => {
-    try { await axios.delete(`/tasks/${id}`); fetchAll(); } catch {}
+    try {
+      await axios.delete(`/tasks/${id}`);
+      fetchPersonalTasks();
+    } catch {}
   };
 
-  const inputStyle = (key) => ({
-    width: '100%', padding: '11px 14px', borderRadius: '10px',
-    border: `1.5px solid ${focused === key ? '#6366f1' : t.border}`,
-    background: t.inputBg, color: t.text, fontSize: '14px',
-    boxSizing: 'border-box', outline: 'none', transition: 'all 0.2s',
-    fontFamily: "'DM Sans', sans-serif"
-  });
+  // ── Shared styles ──────────────────────────────────────────
+  const inp = {
+    width: '100%', padding: '10px 14px', borderRadius: '10px',
+    border: `1px solid ${th.border}`, background: th.inputBg,
+    color: th.text, fontSize: '14px', outline: 'none',
+    fontFamily: "'DM Sans',sans-serif", boxSizing: 'border-box',
+  };
+  const lbl = {
+    display: 'block', fontSize: '11px', fontWeight: '600',
+    color: th.textSec, marginBottom: '5px',
+    textTransform: 'uppercase', letterSpacing: '0.7px',
+  };
 
-  const projectsWithTasks = projects.filter(p => tasks.some(tk => tk.ProjectId === p.id));
-  const unassignedTasks   = tasks.filter(tk => !tk.ProjectId);
-  const filteredTasks     = activeProject === 'all'  ? tasks
-    : activeProject === 'none' ? unassignedTasks
-    : tasks.filter(tk => tk.ProjectId === activeProject);
+  const renderTaskRow = (task, showDelete = true) => {
+    const sc = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
+    const pc = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+    return (
+      <div key={task.id} className="tk-row" style={{
+        display: 'flex', alignItems: 'center', gap: '14px',
+        padding: '13px 18px', borderRadius: '12px',
+        border: `1px solid ${th.border}`, background: th.cardBg,
+        marginBottom: '8px', transition: 'background 0.15s',
+        animation: 'cardIn 0.3s ease forwards',
+      }}>
+        {/* Status dot / toggle */}
+        <button
+        title="Cycle status"
+        onClick={() => {
+        const cycle = { 'todo': 'in-progress', 'in-progress': 'done', 'done': 'todo' };
+        updateStatus(task, cycle[task.status]);
+        }}
+        style={{
+        width: '20px',
+        height: '20px',
+        borderRadius: '50%',
+        background: sc.bg,
+        border: `2px solid ${sc.color}`,
+        cursor: 'pointer',
+        flexShrink: 0,
+        transition: 'all 0.2s',
+      }}
+/>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: '14px', fontWeight: '500', color: th.text,
+            textDecoration: task.status === 'done' ? 'line-through' : 'none',
+            opacity: task.status === 'done' ? 0.6 : 1,
+          }}>{task.title}</div>
+          {task.description && (
+            <div style={{ fontSize: '12px', color: th.textSec, marginTop: '2px' }}>{task.description}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span style={{
+            padding: '2px 9px', borderRadius: '20px', fontSize: '10px',
+            fontWeight: '600', background: pc.color + '20', color: pc.color,
+          }}>{pc.label}</span>
+          <span style={{
+            padding: '2px 9px', borderRadius: '20px', fontSize: '10px',
+            fontWeight: '600', background: sc.bg, color: sc.color,
+          }}>{sc.label}</span>
+          {task.dueDate && (
+            <span style={{ fontSize: '11px', color: th.textSec }}>
+              {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          )}
+          {showDelete && (
+            <button onClick={() => deleteTask(task.id)} style={{
+              background: 'rgba(239,68,68,0.1)', border: 'none',
+              color: '#f87171', borderRadius: '6px', padding: '4px 9px',
+              cursor: 'pointer', fontSize: '12px',
+            }}>✕</button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, fontFamily: "'DM Sans', sans-serif", transition: 'background 0.3s' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: th.bg, fontFamily: "'DM Sans',sans-serif" }}>
       <Sidebar active="tasks" />
+      <main style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
 
-      <main style={{ flex: 1, display: 'flex', overflowY: 'auto' }}>
+        {/* Header */}
+        <div style={{ marginBottom: '32px' }}>
+          <p style={{ fontSize: '12px', fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '6px' }}>
+            {isAdmin ? 'All Tasks' : 'My Workspace'}
+          </p>
+          <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: '32px', fontWeight: '700', color: th.text, margin: '0 0 4px', letterSpacing: '-0.5px' }}>
+            {isAdmin ? 'Tasks' : 'My Tasks'}
+          </h1>
+          <p style={{ color: th.textSec, fontSize: '14px', margin: 0 }}>
+            {isAdmin
+              ? 'All tasks across all projects.'
+              : 'Manage your personal tasks and view your project assignments.'}
+          </p>
+        </div>
 
-        {/* Member: project filter sidebar */}
-        {isMember && (
-          <div style={{ width: '200px', flexShrink: 0, borderRight: `1px solid ${t.border}`, padding: '32px 12px', background: t.cardBg }}>
-            <p style={{ fontSize: '10px', fontWeight: '700', color: t.textSec, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', padding: '0 8px' }}>
-              Projects
-            </p>
+        {/* ── Tab bar (members only) ── */}
+        {!isAdmin && (
+          <div style={{
+            display: 'flex', gap: '4px', marginBottom: '28px',
+            background: th.cardBg, padding: '4px', borderRadius: '12px',
+            border: `1px solid ${th.border}`, width: 'fit-content',
+          }}>
             {[
-              { id: 'all', name: 'All Tasks', count: tasks.length },
-              ...projectsWithTasks.map(p => ({ id: p.id, name: p.name, count: tasks.filter(tk => tk.ProjectId === p.id).length })),
-              ...(unassignedTasks.length > 0 ? [{ id: 'none', name: 'No Project', count: unassignedTasks.length }] : [])
-            ].map(proj => (
-              <button key={proj.id} className="synq-proj-tab"
-                onClick={() => setActiveProject(proj.id)}
-                style={{
-                  width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: '9px',
-                  border: 'none', cursor: 'pointer', marginBottom: '2px',
-                  background: activeProject === proj.id ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
-                  color: activeProject === proj.id ? 'white' : t.textSec,
-                  fontSize: '13px', fontWeight: activeProject === proj.id ? '600' : '500',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  transition: 'all 0.15s', fontFamily: "'DM Sans', sans-serif"
-                }}>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>{proj.name}</span>
-                <span style={{
-                  fontSize: '10px', fontWeight: '700', padding: '1px 7px', borderRadius: '20px',
-                  background: activeProject === proj.id ? 'rgba(255,255,255,0.2)' : t.border,
-                  color: activeProject === proj.id ? 'white' : t.textSec, flexShrink: 0
-                }}>{proj.count}</span>
+              { id: 'personal', label: '✎ Personal Tasks',  desc: 'Private to you' },
+              { id: 'project',  label: '⬡ Project Tasks',   desc: 'Assigned work'  },
+            ].map(tab => (
+              <button key={tab.id} className="tk-tab" onClick={() => setActiveTab(tab.id)} style={{
+                padding: '8px 20px', borderRadius: '9px', border: 'none', cursor: 'pointer',
+                fontFamily: "'DM Sans',sans-serif", fontSize: '13px', fontWeight: '600',
+                background:  activeTab === tab.id ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'transparent',
+                color:       activeTab === tab.id ? 'white' : th.textSec,
+                boxShadow:   activeTab === tab.id ? '0 4px 12px rgba(99,102,241,0.3)' : 'none',
+              }}>
+                {tab.label}
               </button>
             ))}
           </div>
         )}
 
-        <div style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
-
-          {/* Header */}
-          <div style={{ marginBottom: '36px' }}>
-            <p style={{ fontSize: '12px', fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '6px' }}>
-              {isMember ? 'My Tasks' : 'Task Management'}
-            </p>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '32px', fontWeight: '700', color: t.text, margin: '0 0 6px', letterSpacing: '-0.5px' }}>
-              Tasks
-            </h1>
-            <p style={{ color: t.textSec, fontSize: '14px', margin: 0 }}>
-              {isMember ? 'Tasks assigned to you, grouped by project.' : `${tasks.length} task${tasks.length !== 1 ? 's' : ''} total`}
-            </p>
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '48px', color: th.textSec }}>
+            <div style={{ width: '18px', height: '18px', border: '2px solid #6366f1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            Loading…
           </div>
+        ) : (
 
-          {/* Create Task Form — ADMIN ONLY */}
-          {isAdmin && (
-            <div style={{
-              background: t.cardBg, borderRadius: '16px', padding: '28px',
-              border: `1px solid ${t.border}`, marginBottom: '32px',
-              boxShadow: dark ? '0 4px 24px rgba(0,0,0,0.3)' : '0 2px 12px rgba(0,0,0,0.05)'
-            }}>
-              <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '16px', fontWeight: '700', color: t.text, margin: '0 0 20px' }}>
-                Create New Task
-              </h2>
-              {error && (
-                <div style={{
-                  background: dark ? 'rgba(239,68,68,0.1)' : '#fef2f2',
-                  border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px',
-                  padding: '10px 14px', color: '#f87171', fontSize: '13px', marginBottom: '16px',
-                  display: 'flex', alignItems: 'center', gap: '8px'
-                }}>
-                  <span>⚠</span> {error}
+          /* ═══════════════════════════════════════════════════
+             ADMIN VIEW — all tasks in a flat list
+          ═══════════════════════════════════════════════════ */
+          isAdmin ? (
+            <div>
+              {personalTasks.concat(projectTasks).length === 0 ? (
+                <div style={{ background: th.cardBg, borderRadius: '16px', padding: '64px', border: `1px solid ${th.border}`, textAlign: 'center' }}>
+                  <div style={{ fontSize: '40px', opacity: 0.3, marginBottom: '12px' }}>◈</div>
+                  <p style={{ color: th.textSec, fontSize: '15px', margin: 0 }}>No tasks yet.</p>
+                </div>
+              ) : (
+                <div>
+                  {/* Admin sees ALL tasks fetched from /tasks */}
+                  {personalTasks.map(t => renderTaskRow(t, true))}
                 </div>
               )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-                {[
-                  { key: 'title',       label: 'Task Title',   placeholder: 'e.g. Design homepage' },
-                  { key: 'description', label: 'Description',  placeholder: 'Brief description'    },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{f.label}</label>
-                    <input className="synq-task-input" placeholder={f.placeholder} value={form[f.key]}
-                      onFocus={() => setFocused(f.key)} onBlur={() => setFocused('')}
-                      onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                      onKeyDown={e => e.key === 'Enter' && createTask()}
-                      style={inputStyle(f.key)} />
-                  </div>
-                ))}
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Status</label>
-                  <select className="synq-task-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={{ ...inputStyle('status'), cursor: 'pointer' }}>
-                    <option value="todo">To Do</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="done">Done</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Priority</label>
-                  <select className="synq-task-input" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} style={{ ...inputStyle('priority'), cursor: 'pointer' }}>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Due Date</label>
-                  <input type="date" className="synq-task-input" value={form.dueDate}
-                    onFocus={() => setFocused('date')} onBlur={() => setFocused('')}
-                    onChange={e => setForm({ ...form, dueDate: e.target.value })}
-                    style={{ ...inputStyle('date'), colorScheme: dark ? 'dark' : 'light' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: t.textSec, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Project (optional)</label>
-                  <select className="synq-task-input" value={form.ProjectId} onChange={e => setForm({ ...form, ProjectId: e.target.value })} style={{ ...inputStyle('project'), cursor: 'pointer' }}>
-                    <option value="">No project</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <button className="synq-create-btn" onClick={createTask}
-                style={{
-                  padding: '11px 28px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                  color: 'white', border: 'none', borderRadius: '10px',
-                  fontSize: '14px', fontWeight: '600', cursor: 'pointer',
-                  fontFamily: "'DM Sans', sans-serif",
-                  boxShadow: '0 4px 14px rgba(99,102,241,0.35)', transition: 'all 0.2s'
-                }}>
-                + Create Task
-              </button>
             </div>
-          )}
 
-          {/* Task List */}
-          {filteredTasks.length === 0 ? (
-            <div style={{ background: t.cardBg, borderRadius: '16px', padding: '64px', border: `1px solid ${t.border}`, textAlign: 'center' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>◉</div>
-              <p style={{ color: t.textSec, fontSize: '15px', margin: 0 }}>
-                {isMember ? 'No tasks assigned to you yet.' : 'No tasks yet. Create one above!'}
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {filteredTasks.map((task, i) => {
-                const sc = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
-                const pc = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
-                const isOverdue  = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done';
-                const projectName = projects.find(p => p.id === task.ProjectId)?.name;
+          ) : activeTab === 'personal' ? (
 
-                return (
-                  <div key={task.id} className="synq-task-card" style={{
-                    background: t.cardBg, borderRadius: '14px', padding: '20px 24px',
-                    border: `1px solid ${isOverdue ? 'rgba(239,68,68,0.25)' : t.border}`,
-                    animationDelay: `${i * 0.05}s`,
-                    boxShadow: dark ? '0 4px 20px rgba(0,0,0,0.25)' : '0 2px 10px rgba(0,0,0,0.04)'
+            /* ═══════════════════════════════════════════════
+               PERSONAL TASKS TAB
+               - Private to the logged-in user
+               - NOT visible to admin (no ProjectId, filtered by backend)
+            ═══════════════════════════════════════════════ */
+            <div>
+              {/* Create task button */}
+              <div style={{ marginBottom: '20px' }}>
+                {!showForm ? (
+                  <button onClick={() => setShowForm(true)} style={{
+                    padding: '10px 22px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                    color: 'white', border: 'none', borderRadius: '10px',
+                    fontSize: '14px', fontWeight: '600', cursor: 'pointer',
+                    fontFamily: "'DM Sans',sans-serif", boxShadow: '0 4px 14px rgba(99,102,241,0.3)',
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                          <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: '15px', fontWeight: '700', color: t.text, margin: 0 }}>{task.title}</h3>
-                          <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: pc.bg, color: pc.color }}>{task.priority}</span>
-                          {isOverdue && <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>Overdue</span>}
-                          {projectName && <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: 'rgba(99,102,241,0.1)', color: '#818cf8' }}>⬡ {projectName}</span>}
-                        </div>
-                        {task.description && <p style={{ color: t.textSec, fontSize: '13px', margin: '0 0 10px', lineHeight: 1.5 }}>{task.description}</p>}
-                        {task.dueDate && <span style={{ fontSize: '12px', color: isOverdue ? '#f87171' : t.textSec }}>Due: {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                    + Create Personal Task
+                  </button>
+                ) : (
+                  <div style={{
+                    background: th.cardBg, border: `1px solid ${th.border}`,
+                    borderRadius: '16px', padding: '24px', marginBottom: '20px',
+                  }}>
+                    <h3 style={{ fontFamily: "'Syne',sans-serif", fontSize: '15px', fontWeight: '700', color: th.text, margin: '0 0 16px' }}>
+                      New Personal Task
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {/* Privacy notice */}
+                      <div style={{
+                        background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)',
+                        borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: '#818cf8',
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                      }}>
+                        🔒 This task is <strong>private</strong> — only visible to you. Admin cannot see it.
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                        <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', background: sc.bg, color: sc.color }}>{sc.label}</span>
+                      {error && (
+                        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '8px 12px', color: '#f87171', fontSize: '13px' }}>
+                          ⚠ {error}
+                        </div>
+                      )}
 
-                        {/* Status dropdown — everyone can update their own task status */}
-                        <select value={task.status} onChange={e => updateStatus(task.id, e.target.value)}
-                          style={{
-                            padding: '7px 10px', borderRadius: '8px', border: `1px solid ${t.border}`,
-                            background: t.inputBg, color: t.text, fontSize: '12px', cursor: 'pointer',
-                            outline: 'none', fontFamily: "'DM Sans', sans-serif"
-                          }}>
-                          <option value="todo">To Do</option>
-                          <option value="in-progress">In Progress</option>
-                          <option value="done">Done</option>
-                        </select>
-
-                        {/* Delete — ADMIN ONLY */}
-                        {isAdmin && (
-                          <button className="synq-del-btn" onClick={() => deleteTask(task.id)}
-                            style={{
-                              padding: '7px 14px', background: 'rgba(239,68,68,0.1)', color: '#f87171',
-                              border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', cursor: 'pointer',
-                              fontSize: '12px', fontWeight: '600', transition: 'all 0.18s',
-                              fontFamily: "'DM Sans', sans-serif"
-                            }}>
-                            Delete
-                          </button>
-                        )}
+                      <div>
+                        <label style={lbl}>Task Title *</label>
+                        <input
+                          placeholder="What needs to be done?"
+                          value={newTask.title}
+                          onChange={e => setNewTask({ ...newTask, title: e.target.value })}
+                          onKeyDown={e => e.key === 'Enter' && createPersonalTask()}
+                          style={inp}
+                        />
+                      </div>
+                      <div>
+                        <label style={lbl}>Description</label>
+                        <input
+                          placeholder="Optional details…"
+                          value={newTask.description}
+                          onChange={e => setNewTask({ ...newTask, description: e.target.value })}
+                          style={inp}
+                        />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div>
+                          <label style={lbl}>Priority</label>
+                          <select value={newTask.priority} onChange={e => setNewTask({ ...newTask, priority: e.target.value })} style={inp}>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={lbl}>Due Date</label>
+                          <input
+                            type="date"
+                            value={newTask.dueDate}
+                            onChange={e => setNewTask({ ...newTask, dueDate: e.target.value })}
+                            style={{ ...inp, colorScheme: dark ? 'dark' : 'light' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={createPersonalTask} disabled={creating} style={{
+                          padding: '10px 22px', background: creating ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                          color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px',
+                          fontWeight: '600', cursor: creating ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans',sans-serif",
+                        }}>
+                          {creating ? 'Creating…' : 'Create Task'}
+                        </button>
+                        <button onClick={() => { setShowForm(false); setError(''); setNewTask(EMPTY_TASK); }} style={{
+                          padding: '10px 18px', background: th.inputBg, color: th.textSec,
+                          border: `1px solid ${th.border}`, borderRadius: '10px', fontSize: '14px',
+                          fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
+                        }}>
+                          Cancel
+                        </button>
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                )}
+              </div>
+
+              {/* Personal tasks list */}
+              {personalTasks.length === 0 ? (
+                <div style={{ background: th.cardBg, borderRadius: '16px', padding: '48px', border: `1px solid ${th.border}`, textAlign: 'center' }}>
+                  <div style={{ fontSize: '36px', opacity: 0.3, marginBottom: '12px' }}>✎</div>
+                  <p style={{ color: th.textSec, fontSize: '14px', margin: '0 0 4px' }}>No personal tasks yet.</p>
+                  <p style={{ color: th.textSec, fontSize: '12px', margin: 0, opacity: 0.7 }}>Create your first private task above.</p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: th.textSec, textTransform: 'uppercase', letterSpacing: '0.7px' }}>
+                    {personalTasks.length} task{personalTasks.length !== 1 ? 's' : ''}
+                  </div>
+                  {personalTasks.map(t => renderTaskRow(t, true))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+
+          ) : (
+
+            /* ═══════════════════════════════════════════════
+               PROJECT TASKS TAB
+               - Shows projects where member is assigned
+               - Clicking a project shows AI-generated tasks for that member
+            ═══════════════════════════════════════════════ */
+            <div>
+              {projects.length === 0 ? (
+                <div style={{ background: th.cardBg, borderRadius: '16px', padding: '48px', border: `1px solid ${th.border}`, textAlign: 'center' }}>
+                  <div style={{ fontSize: '36px', opacity: 0.3, marginBottom: '12px' }}>⬡</div>
+                  <p style={{ color: th.textSec, fontSize: '14px', margin: 0 }}>You are not assigned to any projects yet.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '24px' }}>
+
+                  {/* Project selector sidebar */}
+                  <div style={{ width: '240px', flexShrink: 0 }}>
+                    <div style={{ fontSize: '11px', fontWeight: '600', color: th.textSec, textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: '10px' }}>
+                      Your Projects
+                    </div>
+                    {projects.map((p, i) => (
+                      <button key={p.id} onClick={() => setSelectedProject(p)} style={{
+                        width: '100%', textAlign: 'left', padding: '12px 14px',
+                        borderRadius: '10px', border: `1px solid ${selectedProject?.id === p.id ? '#6366f1' : th.border}`,
+                        background: selectedProject?.id === p.id ? 'rgba(99,102,241,0.1)' : th.cardBg,
+                        color: selectedProject?.id === p.id ? '#818cf8' : th.text,
+                        cursor: 'pointer', marginBottom: '6px', fontFamily: "'DM Sans',sans-serif",
+                        fontSize: '13px', fontWeight: '500', transition: 'all 0.15s',
+                      }}>
+                        <div style={{ fontWeight: '600', marginBottom: '2px' }}>{p.name}</div>
+                        <div style={{ fontSize: '11px', color: th.textSec }}>{p.Tasks?.length || 0} tasks</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tasks for selected project */}
+                  <div style={{ flex: 1 }}>
+                    {!selectedProject ? (
+                      <div style={{ background: th.cardBg, borderRadius: '16px', padding: '48px', border: `1px solid ${th.border}`, textAlign: 'center' }}>
+                        <div style={{ fontSize: '36px', opacity: 0.3, marginBottom: '12px' }}>←</div>
+                        <p style={{ color: th.textSec, fontSize: '14px', margin: 0 }}>Select a project to view your tasks.</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div>
+                            <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: '18px', fontWeight: '700', color: th.text, margin: '0 0 2px' }}>
+                              {selectedProject.name}
+                            </h2>
+                            <p style={{ color: th.textSec, fontSize: '13px', margin: 0 }}>Tasks assigned to you in this project</p>
+                          </div>
+                        </div>
+
+                        {projectTasks.length === 0 ? (
+                          <div style={{ background: th.cardBg, borderRadius: '16px', padding: '48px', border: `1px solid ${th.border}`, textAlign: 'center' }}>
+                            <div style={{ fontSize: '36px', opacity: 0.3, marginBottom: '12px' }}>◈</div>
+                            <p style={{ color: th.textSec, fontSize: '14px', margin: 0 }}>No tasks assigned to you in this project yet.</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: th.textSec, textTransform: 'uppercase', letterSpacing: '0.7px' }}>
+                              {projectTasks.length} assigned task{projectTasks.length !== 1 ? 's' : ''}
+                            </div>
+                            {projectTasks.map(t => renderTaskRow(t, false))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        )}
       </main>
     </div>
   );

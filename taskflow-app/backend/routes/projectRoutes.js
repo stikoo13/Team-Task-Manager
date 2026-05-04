@@ -37,35 +37,59 @@ router.post('/', protect, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admins only' });
 
-    const { name, description, status, startDate, endDate, memberIds = [], clientIds = [] } = req.body;
+    const {
+      name, description, status,
+      startDate, endDate,
+      memberIds = [], clientIds = [],
+      tasks = []   // AI-generated task titles from frontend
+    } = req.body;
+
     if (!name) return res.status(400).json({ message: 'Name is required' });
 
-    const { tasks = [] } = req.body;
-
+    // Create the project
     const project = await Project.create({
-    name, description, status,
-    startDate: startDate || null,
-    endDate:   endDate   || null,
-});
+      name, description, status,
+      startDate: startDate || null,
+      endDate:   endDate   || null,
+    });
 
-if (tasks.length > 0) {
-  await Task.bulkCreate(tasks.map(title => ({
-    title: typeof t === 'string' ? t : t.text,
-    status:   'todo',
-    priority: 'medium',
-    ProjectId: project.id,
-    assigneeId: t.assigneeId || null,
-
-  })));
-}
-
+    // Set members (always include admin)
     const memberSet = [...new Set([req.user.id, ...memberIds])];
     const members   = await User.findAll({ where: { id: memberSet } });
     await project.setMembers(members);
 
+    // Set clients
     if (clientIds.length > 0) {
       const clients = await User.findAll({ where: { id: clientIds } });
       await project.setClients(clients);
+    }
+
+    // ✅ FIX: Properly bulk-create tasks with correct variable references
+    // Each task gets assigned to the first selected member (or null if none)
+    // memberIds[0] is the primary assignee; tasks cycle through members if multiple
+    if (tasks.length > 0) {
+      const taskRecords = tasks.map((taskItem, index) => {
+        // taskItem can be a string (title) or object {text, assigneeId}
+        const title      = typeof taskItem === 'string' ? taskItem : (taskItem.text || taskItem.title || '');
+        // Distribute tasks among selected members round-robin, fallback to null
+        const assigneeId = memberIds.length > 0
+          ? memberIds[index % memberIds.length]
+          : null;
+
+        return {
+          title,
+          status:    'todo',
+          priority:  'medium',
+          ProjectId: project.id,
+          assigneeId,
+        };
+      });
+
+      // Filter out any empty titles
+      const validTasks = taskRecords.filter(tr => tr.title.trim() !== '');
+      if (validTasks.length > 0) {
+        await Task.bulkCreate(validTasks);
+      }
     }
 
     const full = await Project.findByPk(project.id, { include: INCLUDE_ALL });
@@ -76,7 +100,7 @@ if (tasks.length > 0) {
   }
 });
 
-// PUT update project  ← THIS WAS MISSING
+// PUT update project
 router.put('/:id', protect, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admins only' });

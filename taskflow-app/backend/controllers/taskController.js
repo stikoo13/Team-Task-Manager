@@ -4,12 +4,30 @@ const User = require('../models/User');
 // GET /api/tasks
 // - Admin: sees all tasks
 // - Member: sees only tasks assigned to them
+//   ?projectId=xxx  → filter by project (for project tasks tab)
+//   no projectId    → personal tasks only (no ProjectId in DB)
 exports.getTasks = async (req, res) => {
   try {
+    const { projectId } = req.query;
     const where = {};
+
     if (req.user.role === 'member') {
+      // Members always only see their own tasks
       where.assigneeId = req.user.id;
+
+      if (projectId) {
+        // Project tasks tab: tasks in this specific project assigned to them
+        where.ProjectId = projectId;
+      } else {
+        // Personal tasks tab: tasks with NO project (private)
+        where.ProjectId = null;
+      }
     }
+    // Admin: sees everything (no where filter unless projectId passed)
+    else if (projectId) {
+      where.ProjectId = projectId;
+    }
+
     const tasks = await Task.findAll({ where, order: [['createdAt', 'DESC']] });
     res.json(tasks);
   } catch (err) {
@@ -18,20 +36,18 @@ exports.getTasks = async (req, res) => {
 };
 
 // POST /api/tasks
-// assigneeId defaults to the creating user (member creates their own task)
-// Admin can pass assigneeId explicitly to assign to someone else
 exports.createTask = async (req, res) => {
   try {
     const { title, description, status, priority, dueDate, ProjectId, assigneeId } = req.body;
     const task = await Task.create({
       title,
       description,
-      status: status || 'todo',
-      priority: priority || 'medium',
-      dueDate: dueDate || null,
-      ProjectId: ProjectId || null,
+      status:    status   || 'todo',
+      priority:  priority || 'medium',
+      dueDate:   dueDate  || null,
+      ProjectId: ProjectId || null,   // null = personal task (invisible to admin)
       // Admin can assign to anyone; members always assign to themselves
-      assigneeId: req.user.role === 'admin' && assigneeId ? assigneeId : req.user.id
+      assigneeId: req.user.role === 'admin' && assigneeId ? assigneeId : req.user.id,
     });
     res.status(201).json(task);
   } catch (err) {
@@ -45,7 +61,6 @@ exports.updateTask = async (req, res) => {
     const task = await Task.findByPk(req.params.id);
     if (!task) return res.status(404).json({ message: 'Task not found' });
 
-    // Members can only update their own tasks
     if (req.user.role === 'member' && task.assigneeId !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized' });
     }
@@ -63,7 +78,6 @@ exports.deleteTask = async (req, res) => {
     const task = await Task.findByPk(req.params.id);
     if (!task) return res.status(404).json({ message: 'Task not found' });
 
-    // Members can only delete their own tasks
     if (req.user.role === 'member' && task.assigneeId !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized' });
     }

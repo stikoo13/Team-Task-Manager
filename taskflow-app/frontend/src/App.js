@@ -1,48 +1,86 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from './context/ThemeContext';
-import Login           from './pages/Login';
-import Signup          from './pages/Signup';
-import Dashboard       from './pages/Dashboard';
-import Projects        from './pages/Projects';
-import Tasks           from './pages/Tasks';
-import Profile         from './pages/Profile';
-import Members         from './pages/Members';
-import ClientDashboard from './pages/ClientDashboard';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
+import Projects from "./pages/Projects";
+import Tasks from "./pages/Tasks";
+import Members from "./pages/Members";
+import Profile from "./pages/Profile";
+import ClientDashboard from "./pages/ClientDashboard";
+import { ThemeProvider } from "./context/ThemeContext";
 
-// Redirect to appropriate home based on role
-const RoleRoute = ({ children, roles }) => {
-  const token = localStorage.getItem('token');
-  if (!token) return <Navigate to="/login" replace />;
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  if (!roles.includes(user.role)) {
-    return <Navigate to={user.role === 'client' ? '/client' : '/dashboard'} replace />;
-  }
-  return children;
+// Helper: read user from localStorage
+const getUser = () => {
+  try { return JSON.parse(localStorage.getItem('user') || 'null'); }
+  catch { return null; }
 };
 
-// Any authenticated user (used for profile)
-const PrivateRoute = ({ children }) =>
-  localStorage.getItem('token') ? children : <Navigate to="/login" replace />;
+// Protected route wrapper
+function Protected({ children, roles }) {
+  const user = getUser();
+  if (!user) return <Navigate to="/login" replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  return children;
+}
 
-function App() {
+export default function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
+      <Router>
         <Routes>
-          <Route path="/"          element={<Navigate to="/login" replace />} />
-          <Route path="/login"     element={<Login />} />
-          <Route path="/signup"    element={<Signup />} />
+          {/* Public */}
+          <Route path="/login"  element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-          <Route path="/dashboard" element={<RoleRoute roles={['admin','member']}><Dashboard /></RoleRoute>} />
-          <Route path="/projects"  element={<RoleRoute roles={['admin','member']}><Projects /></RoleRoute>} />
-          <Route path="/tasks"     element={<RoleRoute roles={['admin','member']}><Tasks /></RoleRoute>} />
-          <Route path="/members"   element={<RoleRoute roles={['admin']}><Members /></RoleRoute>} />
-          <Route path="/client"    element={<RoleRoute roles={['client']}><ClientDashboard /></RoleRoute>} />
-          <Route path="/profile"   element={<PrivateRoute><Profile /></PrivateRoute>} />
+          {/* Admin routes */}
+          <Route path="/dashboard" element={
+            <Protected roles={['admin','member']}>
+              <Dashboard />
+            </Protected>
+          } />
+          <Route path="/projects" element={
+            <Protected roles={['admin','member']}>
+              <Projects />
+            </Protected>
+          } />
+          <Route path="/tasks" element={
+            <Protected roles={['admin','member']}>
+              <Tasks />
+            </Protected>
+          } />
+          <Route path="/members" element={
+            <Protected roles={['admin']}>
+              <Members />
+            </Protected>
+          } />
+
+          {/* ✅ FIX: Profile is its own dedicated route — no overlap with Projects */}
+          <Route path="/profile" element={
+            <Protected>
+              <Profile />
+            </Protected>
+          } />
+
+          {/* Client route */}
+          <Route path="/client" element={
+            <Protected roles={['client']}>
+              <ClientDashboard />
+            </Protected>
+          } />
+
+          {/* Redirect root */}
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
+      </Router>
     </ThemeProvider>
   );
 }
 
-export default App;
+function RootRedirect() {
+  const user = getUser();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'client') return <Navigate to="/client" replace />;
+  return <Navigate to="/dashboard" replace />;
+}
