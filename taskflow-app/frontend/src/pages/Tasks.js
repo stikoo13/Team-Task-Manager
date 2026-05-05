@@ -32,6 +32,7 @@ export default function Tasks() {
   const [newTask,        setNewTask]        = useState(EMPTY_TASK);
   const [creating,       setCreating]       = useState(false);
   const [loading,        setLoading]        = useState(true);
+  const [allTasks,       setAllTasks]       = useState([]); // for admin view
   const [_editingTask, _setEditingTask] = useState(null);
   const [showForm,       setShowForm]       = useState(false);
   const [error,          setError]          = useState('');
@@ -61,6 +62,13 @@ export default function Tasks() {
       setPersonalTasks(data.filter(t => !t.ProjectId));
     } catch { setPersonalTasks([]); }
   }, []);
+  // Add this new function — for admin to see all project tasks
+const fetchAllTasks = useCallback(async () => {
+  try {
+    const { data } = await axios.get('/tasks');
+    setAllTasks(data);
+  } catch { setAllTasks([]); }
+}, []);
 
   // ── Fetch projects assigned to this member ─────────────────
   const fetchProjects = useCallback(async () => {
@@ -79,10 +87,12 @@ export default function Tasks() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchPersonalTasks(), fetchProjects()])
-      .finally(() => setLoading(false));
-  }, [fetchPersonalTasks, fetchProjects]);
+  setLoading(true);
+  const fetches = isAdmin
+    ? [fetchAllTasks(), fetchProjects()]
+    : [fetchPersonalTasks(), fetchProjects()];
+  Promise.all(fetches).finally(() => setLoading(false));
+}, []);
 
   useEffect(() => {
     if (selectedProject) fetchProjectTasks(selectedProject.id);
@@ -259,22 +269,23 @@ export default function Tasks() {
           /* ═══════════════════════════════════════════════════
              ADMIN VIEW — all tasks in a flat list
           ═══════════════════════════════════════════════════ */
-          isAdmin ? (
-            <div>
-              {personalTasks.concat(projectTasks).length === 0 ? (
-                <div style={{ background: th.cardBg, borderRadius: '16px', padding: '64px', border: `1px solid ${th.border}`, textAlign: 'center' }}>
-                  <div style={{ fontSize: '40px', opacity: 0.3, marginBottom: '12px' }}>◈</div>
-                  <p style={{ color: th.textSec, fontSize: '15px', margin: 0 }}>No tasks yet.</p>
-                </div>
-              ) : (
-                <div>
-                  {/* Admin sees ALL tasks fetched from /tasks */}
-                  {personalTasks.map(t => renderTaskRow(t, true))}
-                </div>
-              )}
-            </div>
-
-          ) : activeTab === 'personal' ? (
+            isAdmin ? (
+  <div>
+    {allTasks.length === 0 ? (
+      <div style={{ background: th.cardBg, borderRadius: '16px', padding: '64px', border: `1px solid ${th.border}`, textAlign: 'center' }}>
+        <div style={{ fontSize: '40px', opacity: 0.3, marginBottom: '12px' }}>◈</div>
+        <p style={{ color: th.textSec, fontSize: '15px', margin: 0 }}>No project tasks yet.</p>
+      </div>
+    ) : (
+      <div>
+        <div style={{ marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: th.textSec, textTransform: 'uppercase', letterSpacing: '0.7px' }}>
+          {allTasks.length} task{allTasks.length !== 1 ? 's' : ''} across all projects
+        </div>
+        {allTasks.map(t => renderTaskRow(t, true))}
+      </div>
+    )}
+  </div>
+)
 
             /* ═══════════════════════════════════════════════
                PERSONAL TASKS TAB

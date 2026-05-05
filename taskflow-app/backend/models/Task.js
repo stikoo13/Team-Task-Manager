@@ -8,7 +8,14 @@ const Task = sequelize.define('Task', {
   status: { type: DataTypes.ENUM('todo', 'in-progress', 'done'), defaultValue: 'todo' },
   priority: { type: DataTypes.ENUM('low', 'medium', 'high'), defaultValue: 'medium' },
   dueDate: { type: DataTypes.DATE },
-  assigneeId: { type: DataTypes.UUID, allowNull: true }
+
+  // ✅ NEW: links task to a project
+  ProjectId: { type: DataTypes.UUID, allowNull: true },
+
+  assigneeId: { type: DataTypes.UUID, allowNull: true },
+
+  // ✅ NEW: true = personal/private task, admin cannot see it
+  isPersonal: { type: DataTypes.BOOLEAN, defaultValue: false }
 });
 
 module.exports = Task;

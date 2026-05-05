@@ -320,7 +320,7 @@ export default function Projects() {
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:t.bg, fontFamily:"'DM Sans',sans-serif", transition:'background 0.3s' }}>
-      <Sidebar active="projects" />
+      <Sidebar active="profile" />
       <main style={{ flex:1, padding:'40px 48px', overflowY:'auto' }}>
 
         <div style={{ marginBottom:'36px' }}>

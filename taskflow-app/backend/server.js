@@ -19,8 +19,8 @@ app.use(cors({
 app.use(express.json());
 connectDB();
 sequelize.sync({ alter: true })
-  .then(() => console.log('Tables synced!'))
-  .catch(err => console.error('Sync error:', err.message));
+  .then(() => console.log('✅ DB synced'))
+  .catch(err => console.error('❌ Sync error:', err));
 
 app.get('/', (_req, res) => res.json({ message: 'SYNQ AI API is running!' }));
 app.use('/api/auth',     require('./routes/authRoutes'));

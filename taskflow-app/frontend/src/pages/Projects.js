@@ -131,6 +131,9 @@ export default function Projects() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError]         = useState('');
   const [editError, setEditError] = useState('');
+
+  const [submitting, setSubmitting] = useState(false);
+  
   const [mSearch, setMSearch]     = useState('');
   const [cSearch, setCSearch]     = useState('');
   const [emSearch, setEmSearch]   = useState('');
@@ -187,13 +190,23 @@ export default function Projects() {
   };
 
   const createProject = async () => {
-    if (!form.name) return setError('Project name is required');
-    try {
-      await axios.post('/projects', { ...form, tasks: aiTasks.map(t => t.text) });
-      setForm(EMPTY); setMSearch(''); setCSearch(''); setAiTasks([]); setAiError(''); setError('');
-      fetchProjects();
-    } catch (err) { setError(err.response?.data?.message || 'Failed to create project'); }
-  };
+  if (!form.name) return setError('Project name is required');
+  if (submitting) return; // blocks double clicks
+  setSubmitting(true);
+  try {
+    await axios.post('/projects', {
+      ...form,
+      tasks: aiTasks.map(t => t.text)
+    });
+    setForm(EMPTY); setMSearch(''); setCSearch('');
+    setAiTasks([]); setAiError(''); setError('');
+    fetchProjects();
+  } catch (err) {
+    setError(err.response?.data?.message || 'Failed to create project');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const openEdit = (p) => {
     setEditingId(p.id);
@@ -229,15 +242,21 @@ export default function Projects() {
 
             {aiError && <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.25)', borderRadius:'8px', padding:'8px 12px', color:'#f87171', fontSize:'12px', marginTop:'16px' }}>⚠ {aiError}</div>}
 
-            <button onClick={generateTasks} disabled={aiLoading} style={{ marginTop:'16px', width:'100%', padding:'11px 20px', background: aiLoading?'rgba(99,102,241,0.4)':'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:'600', cursor: aiLoading?'not-allowed':'pointer', fontFamily:"'DM Sans',sans-serif", boxShadow:'0 4px 14px rgba(99,102,241,0.3)', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', transition:'all 0.2s' }}>
-              {aiLoading ? <><span className="sp-spinner" /> Generating tasks…</> : <>✦ Generate Tasks with AI</>}
-            </button>
-
-            {aiTasks.length > 0 && <AITaskSection tasks={aiTasks} setTasks={setAiTasks} t={t} />}
-
-            <button onClick={createProject} style={{ marginTop:'16px', padding:'11px 28px', background:'linear-gradient(135deg,#10b981,#34d399)', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:'600', cursor:'pointer', fontFamily:"'DM Sans',sans-serif", boxShadow:'0 4px 14px rgba(16,185,129,0.35)' }}>
-              + Create Project
-            </button>
+            <button
+            onClick={createProject}
+            disabled={submitting}
+            style={{
+            marginTop: '16px', padding: '11px 28px',
+            background: submitting ? 'rgba(16,185,129,0.4)' : 'linear-gradient(135deg,#10b981,#34d399)',
+            color: 'white', border: 'none', borderRadius: '10px',
+            fontSize: '14px', fontWeight: '600',
+            cursor: submitting ? 'not-allowed' : 'pointer',
+            fontFamily: "'DM Sans',sans-serif",
+            boxShadow: '0 4px 14px rgba(16,185,129,0.35)'
+            }}
+          >
+      {submitting ? 'Creating…' : '+ Create Project'}
+    </button>
           </div>
         )}
 
