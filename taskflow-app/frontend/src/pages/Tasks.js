@@ -24,19 +24,18 @@ export default function Tasks() {
   const user    = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.role === 'admin';
 
-  const [activeTab,        setActiveTab]        = useState('personal');
-  const [personalTasks,    setPersonalTasks]    = useState([]);
-  const [projectTasks,     setProjectTasks]     = useState([]);
-  const [allTasks,         setAllTasks]         = useState([]);
-  const [projects,         setProjects]         = useState([]);
-  const [selectedProject,  setSelectedProject]  = useState(null);
-  const [newTask,          setNewTask]          = useState(EMPTY_TASK);
-  const [creating,         setCreating]         = useState(false);
-  const [loading,          setLoading]          = useState(true);
-  const [showForm,         setShowForm]         = useState(false);
-  const [error,            setError]            = useState('');
+  const [activeTab,       setActiveTab]       = useState('personal');
+  const [personalTasks,   setPersonalTasks]   = useState([]);
+  const [projectTasks,    setProjectTasks]    = useState([]);
+  const [allTasks,        setAllTasks]        = useState([]);
+  const [projects,        setProjects]        = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [newTask,         setNewTask]         = useState(EMPTY_TASK);
+  const [creating,        setCreating]        = useState(false);
+  const [loading,         setLoading]         = useState(true);
+  const [showForm,        setShowForm]        = useState(false);
+  const [error,           setError]           = useState('');
 
-  // ── Font injection ─────────────────────────────────────────
   useEffect(() => {
     const id = 'synq-tasks-style';
     if (!document.getElementById(id)) {
@@ -53,7 +52,6 @@ export default function Tasks() {
     }
   }, []);
 
-  // ── Fetchers ───────────────────────────────────────────────
   const fetchPersonalTasks = useCallback(async () => {
     try {
       const { data } = await axios.get('/tasks');
@@ -82,26 +80,19 @@ export default function Tasks() {
     } catch { setProjectTasks([]); }
   }, []);
 
-  // ── Initial load ───────────────────────────────────────────
   useEffect(() => {
     setLoading(true);
-    if (isAdmin) {
-      Promise.all([fetchAllTasks(), fetchProjects()])
-        .finally(() => setLoading(false));
-    } else {
-      Promise.all([fetchPersonalTasks(), fetchProjects()])
-        .finally(() => setLoading(false));
-    }
-  }, [isAdmin, fetchAllTasks, fetchPersonalTasks, fetchProjects]);
+    const fetches = isAdmin
+      ? [fetchAllTasks(), fetchProjects()]
+      : [fetchPersonalTasks(), fetchProjects()];
+    Promise.all(fetches).finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ── Load tasks when project selected ──────────────────────
   useEffect(() => {
-    if (selectedProject) {
-      fetchProjectTasks(selectedProject.id);
-    }
+    if (selectedProject) fetchProjectTasks(selectedProject.id);
   }, [selectedProject, fetchProjectTasks]);
 
-  // ── Create personal task ───────────────────────────────────
   const createPersonalTask = async () => {
     if (!newTask.title.trim()) return setError('Task title is required');
     setCreating(true);
@@ -124,7 +115,6 @@ export default function Tasks() {
     }
   };
 
-  // ── Update task status ─────────────────────────────────────
   const updateStatus = async (task, newStatus) => {
     try {
       await axios.put('/tasks/' + task.id, { ...task, status: newStatus });
@@ -137,19 +127,14 @@ export default function Tasks() {
     } catch {}
   };
 
-  // ── Delete task ────────────────────────────────────────────
   const deleteTask = async (id) => {
     try {
       await axios.delete('/tasks/' + id);
-      if (isAdmin) {
-        fetchAllTasks();
-      } else {
-        fetchPersonalTasks();
-      }
+      if (isAdmin) fetchAllTasks();
+      else fetchPersonalTasks();
     } catch {}
   };
 
-  // ── Shared styles ──────────────────────────────────────────
   const inp = {
     width: '100%', padding: '10px 14px', borderRadius: '10px',
     border: '1px solid ' + th.border, background: th.inputBg,
@@ -162,7 +147,6 @@ export default function Tasks() {
     textTransform: 'uppercase', letterSpacing: '0.7px',
   };
 
-  // ── Task row renderer ──────────────────────────────────────
   const renderTaskRow = (task, showDelete) => {
     const sc = STATUS_CONFIG[task.status] || STATUS_CONFIG['todo'];
     const pc = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
@@ -222,13 +206,11 @@ export default function Tasks() {
     );
   };
 
-  // ── Render ─────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: th.bg, fontFamily: "'DM Sans',sans-serif" }}>
       <Sidebar active="tasks" />
       <main style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
 
-        {/* Header */}
         <div style={{ marginBottom: '32px' }}>
           <p style={{ fontSize: '12px', fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '6px' }}>
             {isAdmin ? 'All Tasks' : 'My Workspace'}
@@ -237,13 +219,10 @@ export default function Tasks() {
             {isAdmin ? 'Tasks' : 'My Tasks'}
           </h1>
           <p style={{ color: th.textSec, fontSize: '14px', margin: 0 }}>
-            {isAdmin
-              ? 'All tasks across all projects.'
-              : 'Manage your personal tasks and view your project assignments.'}
+            {isAdmin ? 'All tasks across all projects.' : 'Manage your personal tasks and view your project assignments.'}
           </p>
         </div>
 
-        {/* Tab bar — members only */}
         {!isAdmin && (
           <div style={{
             display: 'flex', gap: '4px', marginBottom: '28px',
@@ -274,9 +253,7 @@ export default function Tasks() {
           </div>
 
         ) : isAdmin ? (
-          /* ══════════════════════════════════════
-             ADMIN VIEW — all project tasks
-          ══════════════════════════════════════ */
+          /* ── ADMIN VIEW ── */
           <div>
             {allTasks.length === 0 ? (
               <div style={{ background: th.cardBg, borderRadius: '16px', padding: '64px', border: '1px solid ' + th.border, textAlign: 'center' }}>
@@ -294,9 +271,7 @@ export default function Tasks() {
           </div>
 
         ) : activeTab === 'personal' ? (
-          /* ══════════════════════════════════════
-             PERSONAL TASKS TAB
-          ══════════════════════════════════════ */
+          /* ── PERSONAL TASKS TAB ── */
           <div>
             <div style={{ marginBottom: '20px' }}>
               {!showForm ? (
@@ -309,18 +284,12 @@ export default function Tasks() {
                   + Create Personal Task
                 </button>
               ) : (
-                <div style={{
-                  background: th.cardBg, border: '1px solid ' + th.border,
-                  borderRadius: '16px', padding: '24px', marginBottom: '20px',
-                }}>
+                <div style={{ background: th.cardBg, border: '1px solid ' + th.border, borderRadius: '16px', padding: '24px', marginBottom: '20px' }}>
                   <h3 style={{ fontFamily: "'Syne',sans-serif", fontSize: '15px', fontWeight: '700', color: th.text, margin: '0 0 16px' }}>
                     New Personal Task
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{
-                      background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)',
-                      borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: '#818cf8',
-                    }}>
+                    <div style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: '#818cf8' }}>
                       🔒 This task is <strong>private</strong> — only visible to you.
                     </div>
                     {error && (
@@ -370,16 +339,18 @@ export default function Tasks() {
                       <button onClick={createPersonalTask} disabled={creating} style={{
                         padding: '10px 22px',
                         background: creating ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-                        color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px',
-                        fontWeight: '600', cursor: creating ? 'not-allowed' : 'pointer',
+                        color: 'white', border: 'none', borderRadius: '10px',
+                        fontSize: '14px', fontWeight: '600',
+                        cursor: creating ? 'not-allowed' : 'pointer',
                         fontFamily: "'DM Sans',sans-serif",
                       }}>
                         {creating ? 'Creating…' : 'Create Task'}
                       </button>
                       <button onClick={() => { setShowForm(false); setError(''); setNewTask(EMPTY_TASK); }} style={{
                         padding: '10px 18px', background: th.inputBg, color: th.textSec,
-                        border: '1px solid ' + th.border, borderRadius: '10px', fontSize: '14px',
-                        fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
+                        border: '1px solid ' + th.border, borderRadius: '10px',
+                        fontSize: '14px', fontWeight: '600', cursor: 'pointer',
+                        fontFamily: "'DM Sans',sans-serif",
                       }}>
                         Cancel
                       </button>
@@ -406,9 +377,7 @@ export default function Tasks() {
           </div>
 
         ) : (
-          /* ══════════════════════════════════════
-             PROJECT TASKS TAB
-          ══════════════════════════════════════ */
+          /* ── PROJECT TASKS TAB ── */
           <div>
             {projects.length === 0 ? (
               <div style={{ background: th.cardBg, borderRadius: '16px', padding: '48px', border: '1px solid ' + th.border, textAlign: 'center' }}>
@@ -417,32 +386,25 @@ export default function Tasks() {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '24px' }}>
-
-                {/* Project selector */}
                 <div style={{ width: '240px', flexShrink: 0 }}>
                   <div style={{ fontSize: '11px', fontWeight: '600', color: th.textSec, textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: '10px' }}>
                     Your Projects
                   </div>
                   {projects.map(p => (
                     <button key={p.id} onClick={() => setSelectedProject(p)} style={{
-                      width: '100%', textAlign: 'left', padding: '12px 14px',
-                      borderRadius: '10px',
+                      width: '100%', textAlign: 'left', padding: '12px 14px', borderRadius: '10px',
                       border: '1px solid ' + (selectedProject && selectedProject.id === p.id ? '#6366f1' : th.border),
                       background: selectedProject && selectedProject.id === p.id ? 'rgba(99,102,241,0.1)' : th.cardBg,
                       color: selectedProject && selectedProject.id === p.id ? '#818cf8' : th.text,
-                      cursor: 'pointer', marginBottom: '6px',
-                      fontFamily: "'DM Sans',sans-serif",
+                      cursor: 'pointer', marginBottom: '6px', fontFamily: "'DM Sans',sans-serif",
                       fontSize: '13px', fontWeight: '500', transition: 'all 0.15s',
                     }}>
                       <div style={{ fontWeight: '600', marginBottom: '2px' }}>{p.name}</div>
-                      <div style={{ fontSize: '11px', color: th.textSec }}>
-                        {p.Tasks ? p.Tasks.length : 0} tasks
-                      </div>
+                      <div style={{ fontSize: '11px', color: th.textSec }}>{p.Tasks ? p.Tasks.length : 0} tasks</div>
                     </button>
                   ))}
                 </div>
 
-                {/* Tasks panel */}
                 <div style={{ flex: 1 }}>
                   {!selectedProject ? (
                     <div style={{ background: th.cardBg, borderRadius: '16px', padding: '48px', border: '1px solid ' + th.border, textAlign: 'center' }}>
@@ -455,9 +417,7 @@ export default function Tasks() {
                         <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: '18px', fontWeight: '700', color: th.text, margin: '0 0 2px' }}>
                           {selectedProject.name}
                         </h2>
-                        <p style={{ color: th.textSec, fontSize: '13px', margin: 0 }}>
-                          Tasks assigned to you in this project
-                        </p>
+                        <p style={{ color: th.textSec, fontSize: '13px', margin: 0 }}>Tasks assigned to you in this project</p>
                       </div>
                       {projectTasks.length === 0 ? (
                         <div style={{ background: th.cardBg, borderRadius: '16px', padding: '48px', border: '1px solid ' + th.border, textAlign: 'center' }}>
